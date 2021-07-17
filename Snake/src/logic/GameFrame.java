@@ -1,6 +1,8 @@
 package logic;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
 
+@SuppressWarnings("serial")
 public class GameFrame extends JFrame {
 
 	GameFrame() {
