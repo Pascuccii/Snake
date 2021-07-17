@@ -5,6 +5,8 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.TextArea;
+import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
@@ -12,20 +14,23 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Random;
 
+import javax.swing.JButton;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.Timer;
 
 import entities.Direction;
 import entities.Obstacle;
+import logging.ServerLogger;
 
 @SuppressWarnings("serial")
 public class GamePanel extends JPanel implements ActionListener {
 
-	static final int SCREEN_WIDTH = 1800;
-	static final int SCREEN_HEIGHT = 1000;
-	static final int UNIT_SIZE = 25;
+	static final int SCREEN_WIDTH = 800;
+	static final int SCREEN_HEIGHT = 800;
+	static final int UNIT_SIZE = 40;
 	static final int GAME_UNITS = (SCREEN_WIDTH * SCREEN_HEIGHT / UNIT_SIZE);
-	static final int DELAY = 50;
+	static final int DELAY = 110;
 	static final int OBSTACLE_GENERETION_DISTANCE = 500;
 	static final String GAME_OVER = "Game Over";
 	static final String SCORE = "Score: ";
@@ -47,6 +52,10 @@ public class GamePanel extends JPanel implements ActionListener {
 	boolean running = false;
 	Timer timer;
 	Random random;
+	ServerLogger serverLogger = new ServerLogger();
+	JTextField nameField = new JTextField(30);
+	JButton saveButton = new JButton("Save");
+	JButton restartButton = new JButton("New Run");
 
 	GamePanel() {
 		random = new Random();
@@ -54,7 +63,34 @@ public class GamePanel extends JPanel implements ActionListener {
 		this.setBackground(Color.black);
 		this.setFocusable(true);
 		this.addKeyListener(new MyKeyAdapter());
+		setupButtons();
 		startGame();
+	}
+
+	public void setupButtons() {
+		add(nameField);
+		add(saveButton);
+		add(restartButton);
+		nameField.setVisible(false);
+		saveButton.setVisible(false);
+		restartButton.setVisible(false);
+		restartButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				restart();
+			}
+		});
+		saveButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (!nameField.getText().equals("")) {
+					if (serverLogger.logResult(nameField.getText(), applesEaten)) {
+						nameField.setText("");
+						saveButton.setBackground(Color.green);
+					} else {
+						saveButton.setBackground(Color.red);
+					}
+				}
+			}
+		});
 	}
 
 	public void startGame() {
@@ -80,6 +116,11 @@ public class GamePanel extends JPanel implements ActionListener {
 		running = true;
 		repaint();
 		timer.start();
+
+		nameField.setVisible(false);
+		saveButton.setVisible(false);
+		restartButton.setVisible(false);
+		saveButton.setBackground(new Color(238, 238, 238));
 	}
 
 	@Override
@@ -97,11 +138,16 @@ public class GamePanel extends JPanel implements ActionListener {
 
 	public boolean isAppleOnObstacle(Obstacle obstacle) {
 		return !(appleX >= obstacle.getX() && appleY >= obstacle.getY()
-				&& appleX <= obstacle.getX() + obstacle.getWidth() && appleY <= obstacle.getY() + obstacle.getHeight());
+				&& appleX <= obstacle.getX() + obstacle.getWidth() - UNIT_SIZE && appleY <= obstacle.getY() + obstacle.getHeight() - UNIT_SIZE);
 	}
 
 	public boolean isTouchingObstacle() {
-		
+		for (Obstacle obstacle : obstacles) {
+			if (x[0] >= obstacle.getX() && y[0] >= obstacle.getY() && x[0] <= obstacle.getX() + obstacle.getWidth() - UNIT_SIZE
+					&& y[0] <= obstacle.getY() + obstacle.getHeight() - UNIT_SIZE) {
+				return true;
+			}
+		}
 		return false;
 	}
 
@@ -119,8 +165,8 @@ public class GamePanel extends JPanel implements ActionListener {
 	public void newObstacle() {
 		int positionX = random.nextInt(SCREEN_WIDTH / UNIT_SIZE) * UNIT_SIZE;
 		int positionY = random.nextInt(SCREEN_HEIGHT / UNIT_SIZE) * UNIT_SIZE;
-		int width = (random.nextInt(3) + difficulty) * UNIT_SIZE;
-		int height = (random.nextInt(3) + difficulty) * UNIT_SIZE;
+		int width = (random.nextInt(3) + 1) * UNIT_SIZE;
+		int height = (random.nextInt(3) + 1) * UNIT_SIZE;
 		Obstacle obstacle = new Obstacle(positionX, positionY, width, height);
 		if (isObstaclePossible(obstacle)) {
 			if (obstacles.size() < 5) {
@@ -196,38 +242,47 @@ public class GamePanel extends JPanel implements ActionListener {
 	}
 
 	public void checkDifficulty() {
-		if (applesEaten > 0) {// 5
-			timer.setDelay(50);
+		if (applesEaten == 0) {// 0
+			timer.setDelay(DELAY);
+			scoreColor = Color.green;
+			snakeColor = new Color(45, 180, 0);
+			obstacleColor = Color.gray;
+		}
+		if (applesEaten > 1) {// 5
+			timer.setDelay(DELAY - DELAY / 20);
 			difficulty = 2;
 			scoreColor = new Color(128, 255, 0);
 		}
-		if (applesEaten > 1) {// 25
-			timer.setDelay(50);
+		if (applesEaten > 2) {// 25
+			timer.setDelay(DELAY - DELAY / 15);
 			difficulty = 3;
 			scoreColor = new Color(213, 255, 0);
 		}
-		if (applesEaten > 2) {// 50
-			timer.setDelay(47);
+		if (applesEaten > 3) {// 50
+			timer.setDelay(DELAY - DELAY / 12);
 			difficulty = 4;
 			scoreColor = new Color(255, 192, 0);
 		}
-		if (applesEaten > 3) {// 80
-			timer.setDelay(43);
+		if (applesEaten > 4) {// 80
+			timer.setDelay(DELAY - DELAY / 10);
 			difficulty = 5;
 			scoreColor = new Color(255, 85, 0);
 			obstacleColor = new Color(40, 40, 40);
 		}
-		if (applesEaten > 4) {// 100
-			timer.setDelay(40);
+		if (applesEaten > 5) {// 100
+			timer.setDelay(DELAY - DELAY / 8);
 			difficulty = 5;
 			scoreColor = new Color(255, 0, 0);
-			snakeColor = new Color(0, 45, 0);
 			obstacleColor = new Color(20, 20, 20);
 		}
 	}
 
 	public void gameOver(Graphics g) {
 		timer.stop();
+		// Show save field
+		nameField.setVisible(true);
+		saveButton.setVisible(true);
+		restartButton.setVisible(true);
 		// Score text
 		drawScore(g);
 		// Game Over text
@@ -272,9 +327,7 @@ public class GamePanel extends JPanel implements ActionListener {
 	public void drawScore(Graphics g) {
 		g.setColor(scoreColor);
 		g.setFont(new Font("Consolas", Font.BOLD, 40));
-		FontMetrics metrics = getFontMetrics(g.getFont());
-		g.drawString(SCORE + applesEaten, (SCREEN_WIDTH - metrics.stringWidth(SCORE + applesEaten)) / 2,
-				g.getFont().getSize());
+		g.drawString(SCORE + applesEaten, 15, g.getFont().getSize());
 	}
 
 	public void drawGameOver(Graphics g) {
@@ -297,9 +350,9 @@ public class GamePanel extends JPanel implements ActionListener {
 	}
 
 	public void log() {
-		System.out.println("HEAD [" + x[0] / UNIT_SIZE + "] [" + y[0] / UNIT_SIZE + "], direction = " + direction
+		System.err.println("HEAD [" + x[0] / UNIT_SIZE + "] [" + y[0] / UNIT_SIZE + "], direction = " + direction
 				+ ", bodyParts = " + bodyParts + ", applesEaten =" + applesEaten + ", APPLE [" + appleX / UNIT_SIZE
-				+ "] [" + appleY / UNIT_SIZE + "], ");
+				+ "] [" + appleY / UNIT_SIZE + "]");
 	}
 
 	public class MyKeyAdapter extends KeyAdapter {
@@ -327,6 +380,13 @@ public class GamePanel extends JPanel implements ActionListener {
 				}
 				break;
 			case KeyEvent.VK_SPACE:
+				if (timer.isRunning()) {
+					timer.stop();
+				} else {
+					timer.start();
+				}
+				break;
+			case KeyEvent.VK_R:
 				restart();
 				break;
 			}
